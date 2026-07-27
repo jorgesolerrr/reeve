@@ -225,11 +225,51 @@
 </div>
 </div>
 
-<h2><span class="vn">Views 3–7</span> Subsystem internals — pending</h2>
+<h2><span class="vn">View 3</span> Graph — vault · index · context_assembler</h2>
+<p class="viewnote">From <code>06-lld-graph.md</code> (#13). One parse (vault) feeds one cache (index) feeds one pure algorithm (context_assembler). The SQLite file is disposable by policy: <b>rebuild, never migrate</b>. <code>graph_changed</code> has exactly one emission path — the watcher — so reeve's own writes and external edits are indistinguishable downstream.</p>
+
+<div class="layer r2">
+  <div class="tab">core<small>graph service · domain</small></div>
+  <div class="boxes">
+    <div class="box"><b><code>services/graph</code></b><small>the six operations; <code>get_node</code> = vault read (disk is truth) + index resolution table</small></div>
+    <div class="box"><b><code>domain/context_assembler</code></b><small>pure fn over the <code>GraphIndex</code> seam: BFS 2 hops (links ∪ backlinks, epic counts as an edge) → rank (hop → out-before-back → path) → greedy-fill cut to <code>contextTokenBudget</code> (default 32k, tokens ≈ size/4) → render <code>AGENTS.md</code>, byte-deterministic, no timestamp</small></div>
+    <div class="box"><b><code>seams/{vault, index}</code></b><small><code>Vault</code>: read_node · write_doc · patch_front_matter · rewrite_region · scaffold. <code>GraphIndex</code>: resolve · out_links · backlinks · all_nodes · search · ensure_fresh</small></div>
+  </div>
+</div>
+<div class="flow-gap"><span class="arr"><span class="glyph">↑</span>infra implements both seams</span></div>
+<div class="layer r3">
+  <div class="tab">infra<small>vault · index</small></div>
+  <div class="boxes">
+    <div class="box"><b><code>vault</code></b><small>the only Markdown parser: <code>pulldown-cmark</code> + wikilinks (code fences never link) · byte-wise front-matter split, YAML via <code>serde_yaml_ng</code>, unknown keys survive patches · title = front-matter → H1 → name</small></div>
+    <div class="box"><b><code>index</code></b><small><code>rusqlite</code> WAL, one conn/Project on a blocking task · <code>notify</code> + debouncer-full (250&nbsp;ms) · <code>ignore</code> walker for <code>.gitignore</code> semantics · LIKE search, no FTS5 · resolver: path-qualified else bare name, <code>COLLATE NOCASE</code>, ambiguity is an error</small></div>
+  </div>
+</div>
+
+<div class="grid2" style="margin-top: 14px;">
+<pre class="tree"><span class="cm">-- ~/.reeve/projects/&lt;slug&gt;/index.sqlite · user_version=1</span>
+<span class="r3">nodes</span> ( path <span class="cm">PK · repo-relative, '/' always</span>
+        name <span class="cm">basename, = id for T-/E-</span>
+        kind <span class="cm">markdown | excalidraw | html</span>
+        title · mtime_ns · size
+        done · done_date · epic <span class="cm">tickets only</span>
+        source_kind · source_key · source_url )
+<span class="r3">links</span> ( source_path <span class="cm">FK ⇒ CASCADE</span>
+        ord · target <span class="cm">raw: name or path form</span>
+        byte_start · byte_end <span class="cm">editor anchors</span> )
+<span class="cm">+ run-history tables (08) share this file.
+mismatch/corruption ⇒ delete & rebuild.</span></pre>
+
+<div class="enf">
+  <div class="enf-card"><span class="n">1</span><div><b>dormant → buffering</b><small>First Project-scoped operation registers the watcher <i>before</i> walking — mid-walk edits buffer instead of vanishing.</small></div></div>
+  <div class="enf-card"><span class="n">2</span><div><b>Reconciliation walk</b><small><code>ignore</code> walk, stat-only: diff <code>(mtime_ns, size)</code> against <code>nodes</code>; re-parse divergent, delete vanished. Full parse is recovery, never a start cost (NFR-1).</small></div></div>
+  <div class="enf-card"><span class="n">3</span><div><b>live</b><small>Drain buffer, then debounced batches (250&nbsp;ms): one transaction per batch, upsert + link replace, emit <code>graph_changed {paths}</code>. A <code>.gitignore</code> event re-runs the walk.</small></div></div>
+</div>
+</div>
+
+<h2><span class="vn">Views 4–7</span> Subsystem internals — pending</h2>
 <p class="viewnote">Each LLD ticket replaces its card below with the subsystem's classes, state machines, and code flow, at the module positions View 1 fixes.</p>
 
 <div class="pending-grid">
-  <div class="pending"><b>View 3 · Graph</b><small>vault · index · context_assembler — SQLite schema, watcher lifecycle, Context Package flow. Pending <code>06-lld-graph.md</code> (#13).</small></div>
   <div class="pending"><b>View 4 · Workspaces</b><small>git module · WorkspaceProvider — worktree state machine, provenance marker, Windows destroy sequence. Pending <code>07-lld-workspaces.md</code> (#14).</small></div>
   <div class="pending"><b>View 5 · Runs</b><small>run registry · pty — process groups, run lifecycle states, log files, crash reconciliation. Pending <code>08-lld-runs.md</code> (#15).</small></div>
   <div class="pending"><b>View 6 · Sources</b><small>TicketSource trait · gh_client — strategy signatures, curated refresh flow, materialized regions. Pending <code>09-lld-sources.md</code> (#16).</small></div>
@@ -237,7 +277,7 @@
 </div>
 
 <footer>
-  reeve LLD atlas · seeded by 05-lld-skeleton.md (ticket #12) · sections 3–7 land with tickets #13–#17 · companion: 04-hld.html
+  reeve LLD atlas · seeded by 05-lld-skeleton.md (#12) · view 3 from 06-lld-graph.md (#13) · views 4–7 land with #14–#17 · companion: 04-hld.html
 </footer>
 
 </main>
