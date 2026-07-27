@@ -53,7 +53,7 @@ A Project-level command (e.g. `npm test`) whose output accompanies the diff duri
 _Avoid_: Test command, CI
 
 **Run**:
-One agent launch inside a Workspace: the profile used, its start, and its process exit. A Workspace accumulates Runs sequentially (launch, relaunch, manual terminal). Runs are operational metadata, not Nodes; a Run's raw PTY log is kept for inspection but stays outside the graph.
+One process launched inside a Workspace, of kind `agent` (the profile's agent), `terminal` (manual PTY passthrough), or `verify` (the Verify Command; exit code = pass/fail). A Workspace accumulates Runs sequentially, never concurrently. Runs are operational metadata, not Nodes; a Run's raw PTY log is kept for inspection but stays outside the graph.
 _Avoid_: Session, execution, job
 
 **Context Package**:

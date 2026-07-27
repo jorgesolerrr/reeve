@@ -110,7 +110,7 @@ A Workspace ends in exactly one of: **merge** (into the user's chosen base branc
 
 ### Run
 
-One agent launch inside a Workspace: which Agent Profile, when started, how the process exited. A Workspace accumulates Runs **sequentially** — launch, relaunch, manual terminal (PTY passthrough) — never concurrently. Runs are operational metadata in the rebuildable cache, **not Nodes**; each Run's raw PTY log is kept as a plain inspectable file outside the Graph.
+One process launched inside a Workspace: which Agent Profile (for agent Runs), when started, how the process exited. A Run has a **kind** — `agent` (launch/relaunch of the profile's agent), `terminal` (manual PTY passthrough), or `verify` (the Project's Verify Command; its exit code is the pass/fail signal accompanying the diff, FR-5.1 — amended at the API-surface ticket). A Workspace accumulates Runs **sequentially**, never concurrently. Runs are operational metadata in the rebuildable cache, **not Nodes**; each Run's raw PTY log is kept as a plain inspectable file outside the Graph.
 
 **Deliberate thesis refinement** (signed at this ticket): ADR-0001's "agent transcripts join the graph" is realized in v1 by the **Resolution Note**, not by raw transcripts. Raw PTY output is huge, noisy, and would poison deterministic context assembly; distillation would require an LLM in the retrieval path, which ADR-0003 forbids. Transcript-as-Node is revisited post-v1 if dogfooding demands it.
 
