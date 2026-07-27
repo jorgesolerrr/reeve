@@ -1,6 +1,6 @@
 # 06 — LLD: Graph — vault, index, context_assembler
 
-**Status:** Draft — pending sign-off
+**Status:** Signed off (2026-07-27)
 **Ticket:** [LLD: graph subsystem — vault, index, context_assembler](https://github.com/jorgesolerrr/reeve/issues/13)
 **Grounded in:** [05-lld-skeleton.md](./05-lld-skeleton.md) · [04-hld.md](./04-hld.md) · [02-domain-model.md](./02-domain-model.md) · [03-api.md](./03-api.md) · [reference-implementations.md](../research/reference-implementations.md)
 **Visual companion:** [lld-atlas.html](./lld-atlas.html) — View 3.
@@ -181,4 +181,4 @@ Signed at this ticket, amending [02-domain-model.md](./02-domain-model.md): **Pr
 
 ## Sign-off
 
-- [ ] Signed off by Jorge Soler
+- [x] Signed off by Jorge Soler — 2026-07-27
