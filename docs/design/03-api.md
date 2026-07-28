@@ -133,7 +133,8 @@ The area where the `TicketSource` seam surfaces (see [TicketSource seam](#the-ti
 | `start_run(ticketId, kind)` | `kind = agent { profile?, adjustments? } \| terminal \| verify`. Returns once the process starts; output flows via `pty_output`, death via `run_exited`. Only `agent` regenerates `AGENTS.md` (adjustments travel here, whole — the launched package reflects the graph at launch time, never a stale preview); `terminal` and `verify` leave it untouched. Fails with `workspace/run_active` if a Run is live — sequentiality is the core's law. Relaunch is not an operation: it is `start_run` again. |
 | `kill_run(ticketId)` | Kills the live Run's process. The only cancellable thing in the API. |
 | `write_stdin(ticketId, data)` / `resize_pty(ticketId, cols, rows)` | Terminal I/O; `ticketId` suffices because at most one Run is live per Workspace. |
-| `list_runs(ticketId)` | The Workspace's sequential Run history: kind, profile (agent runs), start, exit code, path to the raw PTY log file. |
+| `list_runs(ticketId)` | The **ticket's** sequential Run history: kind, profile (agent runs), start, exit code, log file. Survives merge/push — a `done` ticket's history stays readable; discard erases it *(amended by 08-lld-runs)*. |
+| `read_run_log(ticketId, runId, tailBytes?)` | Log content as lossy UTF-8, bounded tail (2 MiB) by default — history inspection and scrollback restore without a second data path around the API *(added by 08-lld-runs)*. |
 
 ### review
 

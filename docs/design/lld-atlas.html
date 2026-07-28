@@ -309,17 +309,65 @@ push    → branch <span class="r2">Keep</span>   · back to Backlog</pre>
 </div>
 </div>
 
-<h2><span class="vn">Views 5–7</span> Subsystem internals — pending</h2>
+<h2><span class="vn">View 5</span> Runs — run registry · pty</h2>
+<p class="viewnote">From <code>08-lld-runs.md</code> (#15). Liveness lives <b>only</b> in the in-memory registry — no status column, nothing on disk to lie (derive-don't-store applied to processes). One exit path: the main process's death is the domain event, and <b>nothing a Run spawned survives it</b> — the group dies with the Run. Logs are files from day one, written before the UI sees the bytes.</p>
+
+<div class="layer r2">
+  <div class="tab">core<small>runs service · seams</small></div>
+  <div class="boxes">
+    <div class="box"><b><code>services/runs</code></b><small>the seven operations (incl. <code>read_run_log</code>, amended into 03) · registry: <code>Mutex&lt;HashMap&lt;(project, ticket), RunEntry&gt;&gt;</code> — one global lock, never held across <code>await</code> · <code>Starting</code> reservation makes sequentiality atomic: any entry ⇒ <code>run_active</code></small></div>
+    <div class="box"><b><code>seams/pty</code></b><small><code>Pty::spawn(spec, size, log_path, sink, on_exit)</code> · <code>RunHandle</code>: write_stdin · resize · kill (hard group kill, idempotent) · sink is pre-scoped and <b>direct-call</b> — the hot path skips 06's channel pattern on purpose (<code>pty_output</code> is 03's declared exception)</small></div>
+    <div class="box"><b><code>seams/run_history</code></b><small>insert · finalize · mark-interrupted · list · log lookup — over the run tables in 06's <code>index.sqlite</code></small></div>
+    <div class="box"><b><code>start_run</code> choreography</b><small>reserve → resolve (agent: regen <code>AGENTS.md</code> temp+rename · terminal: <code>powershell.exe</code> / <code>$SHELL</code> · verify: Verify Command) → create log → spawn 80×24 → insert row → swap to <code>Live</code>. Unwind on failure: no row — failed starts are not Runs</small></div>
+  </div>
+</div>
+<div class="flow-gap"><span class="arr"><span class="glyph">↑</span>infra implements both seams</span></div>
+<div class="layer r3">
+  <div class="tab">infra<small>pty · index</small></div>
+  <div class="boxes">
+    <div class="box"><b><code>pty</code></b><small><code>portable-pty</code>, argv never a shell · <b>one reader thread per Run</b>: read 8&nbsp;KiB → append raw bytes to log (flush per chunk) → incremental UTF-8 (carry buffer at chunk edges) → emit. Per-chunk, no coalescing — the kernel buffer self-limits the rate; extension point documented</small></div>
+    <div class="box"><b>process groups</b><small>Unix: <code>setsid</code> ⇒ pgid = child pid, kill = <code>kill(-pgid)</code> · Windows: Job Object per Run, <code>KILL_ON_JOB_CLOSE</code> — assign after spawn, kill = <code>TerminateJobObject</code>, and the OS reaps the tree free if reeve crashes (Tier 1 gets the hard guarantee)</small></div>
+    <div class="box"><b><code>index</code> (run tables)</b><small><code>RunHistory</code> impl, same file, same <code>user_version</code>, same law: rebuild, never migrate — history losable by decree of 02</small></div>
+  </div>
+</div>
+
+<div class="grid2" style="margin-top: 14px;">
+<pre class="tree"><span class="cm">-- runs table · same index.sqlite as the graph (06)</span>
+<span class="r3">runs</span> ( id <span class="cm">rowid = runId</span> · ticket_id · kind
+       profile <span class="cm">name, not a snapshot</span>
+       started_at · ended_at · exit_code
+       interrupted <span class="cm">set at Project open</span>
+       log_file )  <span class="cm">-- no status column: registry is truth</span>
+
+<span class="cm"># logs — files from day one, outside repo and Graph</span>
+~/.reeve/projects/&lt;slug&gt;/logs/T-42/&lt;YYYYMMDD-HHMMSS-mmm&gt;.log
+
+<span class="cm"># retention rides the Workspace's fate — no reaper</span>
+discard      → rows + logs <span class="r2">deleted</span> <span class="cm">(no residue)</span>
+merge · push → rows + logs <span class="r2">kept</span>   <span class="cm">(forensic record)</span>
+
+<span class="cm"># crash: UPDATE runs SET interrupted=1 WHERE exit_code IS NULL
+# interrupted counts as exited → ticket wakes In Review
+# app close: UI warns (its own live set) · backend kills all, bounded ~2 s</span></pre>
+
+<div class="enf">
+  <div class="enf-card"><span class="n">1</span><div><b><code>wait()</code> is the domain event</b><small>EOF can never come (a grandchild holds the slave open) — so the main process's exit defines "Run exited". <code>kill_run</code> just provokes the same path.</small></div></div>
+  <div class="enf-card"><span class="n">2</span><div><b>Group killed at exit</b><small>Nothing a Run spawned survives it — like a terminal hanging up your jobs. No pgid retention ⇒ the PID-reuse window never opens; 07's destroy step 2 becomes belt-and-braces.</small></div></div>
+  <div class="enf-card"><span class="n">3</span><div><b>Log complete before announcing</b><small>Group kill releases the slave ⇒ reader EOF ⇒ flush + close; waiter joins it (≤ 2 s). The file never trails the screen — log-before-emit, per chunk.</small></div></div>
+  <div class="enf-card"><span class="n">4</span><div><b>Registry before event</b><small>Finalize row (exit_code, ended_at) → remove entry → <i>then</i> emit <code>run_exited</code> + <code>workspace_changed</code>. When the UI re-queries, state is already coherent.</small></div></div>
+</div>
+</div>
+
+<h2><span class="vn">Views 6–7</span> Subsystem internals — pending</h2>
 <p class="viewnote">Each LLD ticket replaces its card below with the subsystem's classes, state machines, and code flow, at the module positions View 1 fixes.</p>
 
 <div class="pending-grid">
-  <div class="pending"><b>View 5 · Runs</b><small>run registry · pty — process groups, run lifecycle states, log files, crash reconciliation. Pending <code>08-lld-runs.md</code> (#15).</small></div>
   <div class="pending"><b>View 6 · Sources</b><small>TicketSource trait · gh_client — strategy signatures, curated refresh flow, materialized regions. Pending <code>09-lld-sources.md</code> (#16).</small></div>
   <div class="pending"><b>View 7 · Frontend</b><small>surfaces · query cache · terminal registry · diff viewer — prototype-driven. Pending <code>10-lld-frontend.md</code> (#17).</small></div>
 </div>
 
 <footer>
-  reeve LLD atlas · seeded by 05-lld-skeleton.md (#12) · view 3 from 06-lld-graph.md (#13) · view 4 from 07-lld-workspaces.md (#14) · views 5–7 land with #15–#17 · companion: 04-hld.html
+  reeve LLD atlas · seeded by 05-lld-skeleton.md (#12) · view 3 from 06-lld-graph.md (#13) · view 4 from 07-lld-workspaces.md (#14) · view 5 from 08-lld-runs.md (#15) · views 6–7 land with #16–#17 · companion: 04-hld.html
 </footer>
 
 </main>
