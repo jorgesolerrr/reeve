@@ -266,18 +266,60 @@ mismatch/corruption ⇒ delete & rebuild.</span></pre>
 </div>
 </div>
 
-<h2><span class="vn">Views 4–7</span> Subsystem internals — pending</h2>
+<h2><span class="vn">View 4</span> Workspaces — git seam · WorkspaceProvider</h2>
+<p class="viewnote">From <code>07-lld-workspaces.md</code> (#14). Nothing is stored that git cannot re-derive: existence is <code>git worktree list</code>, base and provenance are git config on the branch. Two laws govern every deletion — <b>never delete what you can't prove you created</b> (the <code>reeve-created</code> marker gates branch deletion) and <b>the managed root is its own proof</b> (directories under <code>~/.reeve/worktrees/</code> may be force-deleted; outside it, nothing, ever).</p>
+
+<div class="layer r2">
+  <div class="tab">core<small>workspaces · review · domain</small></div>
+  <div class="boxes">
+    <div class="box"><b><code>services/workspaces</code></b><small>create (10-step flow, marker-gated adoption of pushed branches) · get (probe, derived) · discard (fails on live Run — never auto-kills)</small></div>
+    <div class="box"><b><code>services/review</code></b><small>merge: clean worktree + base checked out in main → <code>git merge</code> no flags → conflict = abort + error → <code>done</code> on landing → destroy tail; cleanup failure after landed merge = <b>warning</b>. push: <code>-u origin</code>, keeps branch, back to Backlog</small></div>
+    <div class="box"><b><code>domain/workspace_locks</code></b><small>per-ticket async mutex map — create/destroy/merge/push serialize; sequencing is domain law, so the lock lives in core</small></div>
+    <div class="box"><b><code>domain/board_derivation</code></b><small>diff non-empty ⟺ <code>ahead_count(base…HEAD) &gt; 0</code> ∨ dirty/untracked · derived per query, no cache · 1 × worktree-list + 2 reads per <i>live</i> workspace</small></div>
+    <div class="box"><b><code>seams/{git, workspace}</code></b><small><code>Git</code>: typed domain ops, parsed values, <code>GitError</code> — the core never sees argv or porcelain. <code>WorkspaceProvider</code>: create · probe · destroy(disposition) · <b>spawn_spec → CommandSpec</b> — the container seam, PTY-shaped</small></div>
+  </div>
+</div>
+<div class="flow-gap"><span class="arr"><span class="glyph">↑</span>infra implements both seams</span></div>
+<div class="layer r3">
+  <div class="tab">infra<small>git module</small></div>
+  <div class="boxes">
+    <div class="box"><b>CLI wrapper</b><small>argv, no shell · <code>-C</code> always · <code>GIT_TERMINAL_PROMPT=0</code>, <code>LC_ALL=C</code> · reads with <code>--no-optional-locks</code> · porcelain v2 <code>-z</code> · exit-code-first classification · git ≥ 2.30 (preflight) · never touches <code>.git</code> internals with fs calls</small></div>
+    <div class="box"><b><code>WorktreeProvider</code></b><small>worktree + branch <code>reeve/T-&lt;n&gt;</code> from the local tip of <code>baseBranch</code> (no implicit fetch) · <code>.worktreeinclude</code> copy-in · verify-after-create, retry-once git-mediated · absolute paths (no <code>--relative-paths</code> in v1: it would flip repo compat for a feature we don't ship) · spawn_spec = identity + cwd + <code>REEVE_TICKET_ID</code>/<code>REEVE_WORKSPACE_PATH</code></small></div>
+  </div>
+</div>
+
+<div class="grid2" style="margin-top: 14px;">
+<pre class="tree"><span class="cm"># stored in git, survives index deletion, travels with the repo</span>
+<span class="r3">branch.reeve/T-42.reeve-created</span> = true   <span class="cm"># provenance — gates every branch delete</span>
+<span class="r3">branch.reeve/T-42.reeve-base</span>    = main   <span class="cm"># per-workspace diff/merge base</span>
+
+<span class="cm"># the managed root — reeve's to delete, its existence is the proof</span>
+~/.reeve/worktrees/&lt;slug&gt;/T-42/
+
+<span class="cm"># the three endings, one disposition apart</span>
+merge   → branch <span class="r2">Delete</span> · done ✓
+discard → branch <span class="r2">Delete</span> · back to Backlog
+push    → branch <span class="r2">Keep</span>   · back to Backlog</pre>
+
+<div class="enf">
+  <div class="enf-card"><span class="n">1</span><div><b>No live Run · lock</b><small>Discard fails with <code>run_active</code> (UI offers kill — two explicit acts). Same per-ticket mutex as create.</small></div></div>
+  <div class="enf-card"><span class="n">2</span><div><b>Kill group orphans</b><small>Run registry's process groups: surviving children (dev servers, MCP) are killed. Foreign handles are never touched — they exhaust retries and get named.</small></div></div>
+  <div class="enf-card"><span class="n">3</span><div><b><code>worktree remove --force</code></b><small>Git-mediated happy path. On Windows-lock failure: direct delete <i>inside the managed root only</i>, backoff 100→1600&nbsp;ms ×5, links removed as links.</small></div></div>
+  <div class="enf-card"><span class="n">4</span><div><b>Prune · branch · verify</b><small><code>prune</code> reconciles the deregister-before-delete failure; branch per disposition, marker-gated; verify path + list + branch. Leftover ⇒ <code>destroy_incomplete</code> / warning — never silence.</small></div></div>
+</div>
+</div>
+
+<h2><span class="vn">Views 5–7</span> Subsystem internals — pending</h2>
 <p class="viewnote">Each LLD ticket replaces its card below with the subsystem's classes, state machines, and code flow, at the module positions View 1 fixes.</p>
 
 <div class="pending-grid">
-  <div class="pending"><b>View 4 · Workspaces</b><small>git module · WorkspaceProvider — worktree state machine, provenance marker, Windows destroy sequence. Pending <code>07-lld-workspaces.md</code> (#14).</small></div>
   <div class="pending"><b>View 5 · Runs</b><small>run registry · pty — process groups, run lifecycle states, log files, crash reconciliation. Pending <code>08-lld-runs.md</code> (#15).</small></div>
   <div class="pending"><b>View 6 · Sources</b><small>TicketSource trait · gh_client — strategy signatures, curated refresh flow, materialized regions. Pending <code>09-lld-sources.md</code> (#16).</small></div>
   <div class="pending"><b>View 7 · Frontend</b><small>surfaces · query cache · terminal registry · diff viewer — prototype-driven. Pending <code>10-lld-frontend.md</code> (#17).</small></div>
 </div>
 
 <footer>
-  reeve LLD atlas · seeded by 05-lld-skeleton.md (#12) · view 3 from 06-lld-graph.md (#13) · views 4–7 land with #14–#17 · companion: 04-hld.html
+  reeve LLD atlas · seeded by 05-lld-skeleton.md (#12) · view 3 from 06-lld-graph.md (#13) · view 4 from 07-lld-workspaces.md (#14) · views 5–7 land with #15–#17 · companion: 04-hld.html
 </footer>
 
 </main>

@@ -49,7 +49,8 @@ A git repository registered in reeve, strictly 1:1 with the repository. One reev
 - the **Verify Command** — the Project's own way of checking itself (`npm test`, `cargo check`…), whose output accompanies the diff at review (FR-5.1);
 - the **default Agent Profile**, referenced by name (profiles themselves are machine-level);
 - Source configuration (see [Source](#source));
-- the **auto-commit flag** (see [Commit policy](#commit-policy)).
+- the **auto-commit flag** (see [Commit policy](#commit-policy));
+- the **base branch** (`baseBranch`) — the branch Workspaces are cut from and merged into; resolved at Project registration (`origin/HEAD`, fallback to the current branch), user-editable. *(Amended by 07-lld-workspaces.)*
 
 ### Node
 

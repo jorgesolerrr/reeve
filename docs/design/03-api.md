@@ -72,7 +72,7 @@ Eight Project-scoped areas mirroring the core's service modules, plus one machin
 | `register_project(path)` | Registers an existing git repository; creates `.reeve/` scaffold if absent. |
 | `unregister_project()` | Removes from the registry; touches no files in the repository. |
 | `list_projects()` | Registered Projects with basic health (path exists, is a git repo). Machine-level, no `project` param. |
-| `get_project_config()` / `update_project_config(config)` | Read/write `.reeve/config.json`: Verify Command, default Agent Profile (by name), Source configuration, `autoCommit` flag. |
+| `get_project_config()` / `update_project_config(config)` | Read/write `.reeve/config.json`: Verify Command, default Agent Profile (by name), Source configuration, `autoCommit` flag, `baseBranch` *(amended by 07-lld-workspaces)*. |
 
 ### graph
 
