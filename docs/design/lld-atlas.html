@@ -358,16 +358,59 @@ merge · push → rows + logs <span class="r2">kept</span>   <span class="cm">(f
 </div>
 </div>
 
-<h2><span class="vn">Views 6–7</span> Subsystem internals — pending</h2>
-<p class="viewnote">Each LLD ticket replaces its card below with the subsystem's classes, state machines, and code flow, at the module positions View 1 fixes.</p>
+<h2><span class="vn">View 6</span> Sources — TicketSource · gh_client · materialized regions</h2>
+<p class="viewnote">From <code>09-lld-sources.md</code> (#16). The seam cut: the trait is <b>pure remote I/O</b> — materialization (id allocation, region rendering, file writes) is service code, written once for every strategy (emdash's 12-provider lesson). <b>Manual is absence, not a strategy</b>: no type implements the trait for it; a manual ticket is just a Ticket without a source reference. The local file is truth — remote state is a datum, never an order.</p>
 
+<div class="layer r2">
+  <div class="tab">core<small>sources service · seams</small></div>
+  <div class="boxes">
+    <div class="box"><b><code>services/sources</code></b><small>the six operations (03) · imported-mapping via index <code>source_key</code> join · materialization: allocate id → render front-matter + region → vault write, batch commits once · refresh: fetch → render → <b>byte-compare → rewrite only if changed</b> · close orchestration</small></div>
+    <div class="box"><b><code>seams/source</code></b><small><code>TicketSource</code>: list_items · fetch_item · close_item → <code>CloseOutcome</code> — sync, <code>Send + Sync</code>, no <code>kind()</code>, no batch · DTOs neutral: <code>SourceItemSummary</code> (id, title, state, url, updatedAt) / <code>SourceItemDetail</code> (+ body, comments verbatim) · <code>SourceError</code>: Auth · NotFound · Network · BinaryMissing · Malformed</small></div>
+    <div class="box"><b>registration</b><small><code>SourceConfig</code> union (<code>Github { repo }</code>) in core · the <b>match arm lives in reeve-app</b> (composition root) as an injected factory — core never sees gh_client · sourceId = kind (<code>"github"</code>) · adding Linear: one variant + one impl + one arm, zero new operations</small></div>
+    <div class="box"><b><code>fixtures/source</code></b><small>sortie-style JSON fixture implementing the full trait — the hermetic test double; fills the "always-present strategy" slot Manual vacates</small></div>
+  </div>
+</div>
+<div class="flow-gap"><span class="arr"><span class="glyph">↑</span>infra implements the seam</span></div>
+<div class="layer r3">
+  <div class="tab">infra<small>gh_client</small></div>
+  <div class="boxes">
+    <div class="box"><b>CLI wrapper</b><small><code>gh</code> from PATH per call · ≥ 2.40 (preflight) · auth is gh's own, no tokens ever (NFR-2) · <code>--repo</code> always explicit, never cwd · 30&nbsp;s timeout ⇒ Network · serde ignores unknown fields (version drift)</small></div>
+    <div class="box"><b>three commands</b><small><code>issue list --state open --json … --limit 200</code> (the importables catalog) · <code>issue view --json …,body,comments</code> (where <code>closed</code> arrives) · <code>issue close --comment</code> — the <b>only write</b> (FR-1.2)</small></div>
+    <div class="box"><b>classification</b><small>exit-code first: <b>4 = Auth</b>, stderr string fallback for older gh (vibe-kanban's pattern) · "already closed" ⇒ <code>AlreadyClosed</code> — success with warning, not an error</small></div>
+  </div>
+</div>
+
+<div class="grid2" style="margin-top: 14px;">
+<pre class="tree"><span class="cm"># the Materialized Region — markers on their own line, no metadata</span>
+<span class="r3">&lt;!-- reeve:source:begin --&gt;</span>
+&gt; Imported from [repo#123](url) · snapshot 2026-07-28 · state: open
+<span class="cm">&lt;title + body, verbatim&gt;</span>
+---
+**@alice** · 2026-07-20 … <span class="cm">comments flat, verbatim, no cap</span>
+<span class="r3">&lt;!-- reeve:source:end --&gt;</span>
+<span class="cm"># sole transform: content line byte-equal to a marker gets a leading space</span>
+
+<span class="cm"># id allocation — "never reused" is not derivable ⇒ stored truth</span>
+<span class="r3">.reeve/counters.json</span>  { "ticket": 12, "epic": 3 }
+next = max(counter, max observed) + 1  <span class="cm"># drift self-corrects forward</span>
+
+<span class="cm"># title: fixed at import, local-owned after — refresh never touches it</span></pre>
+
+<div class="enf">
+  <div class="enf-card"><span class="n">1</span><div><b>rewrite_region</b><small>First begin-marker line, first end after it; replace between, exclusive — every other byte untouched. Atomic via vault; the watcher re-indexes it like any edit.</small></div></div>
+  <div class="enf-card"><span class="n">2</span><div><b>Malformed ⇒ skip + warn</b><small>Zero markers, begin without end, end first: <code>RegionMalformed</code> — never guessed, never re-appended. Repair is manual in v1.</small></div></div>
+  <div class="enf-card"><span class="n">3</span><div><b>Remote closed ⇒ datum only</b><small>Header line + <code>remoteClosed</code> in the result — no structural act, no auto-<code>done</code> (anti-sortie: reconciliation is for daemons whose board is the tracker).</small></div></div>
+  <div class="enf-card"><span class="n">4</span><div><b>Offer-to-close</b><small>UI chains it on imported → <code>done</code> (merge <i>and</i> mark_done); core only exposes <code>close_source_item</code>. No stored success flag — a permanent "Close remote issue" action is the retry path.</small></div></div>
+</div>
+</div>
+
+<h2><span class="vn">View 7</span> Subsystem internals — pending</h2>
 <div class="pending-grid">
-  <div class="pending"><b>View 6 · Sources</b><small>TicketSource trait · gh_client — strategy signatures, curated refresh flow, materialized regions. Pending <code>09-lld-sources.md</code> (#16).</small></div>
   <div class="pending"><b>View 7 · Frontend</b><small>surfaces · query cache · terminal registry · diff viewer — prototype-driven. Pending <code>10-lld-frontend.md</code> (#17).</small></div>
 </div>
 
 <footer>
-  reeve LLD atlas · seeded by 05-lld-skeleton.md (#12) · view 3 from 06-lld-graph.md (#13) · view 4 from 07-lld-workspaces.md (#14) · view 5 from 08-lld-runs.md (#15) · views 6–7 land with #16–#17 · companion: 04-hld.html
+  reeve LLD atlas · seeded by 05-lld-skeleton.md (#12) · view 3 from 06-lld-graph.md (#13) · view 4 from 07-lld-workspaces.md (#14) · view 5 from 08-lld-runs.md (#15) · view 6 from 09-lld-sources.md (#16) · view 7 lands with #17 · companion: 04-hld.html
 </footer>
 
 </main>

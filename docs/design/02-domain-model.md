@@ -171,6 +171,7 @@ Committed, at the repository root:
 ```
 .reeve/
 ├── config.json      # Project configuration
+├── counters.json    # id counters — never-reuse is not derivable (added by 09-lld-sources)
 ├── tickets/         # T-1.md, T-2.md, …
 ├── epics/           # E-1.md, …
 └── notes/           # Resolution Notes (arrive via merged diffs)

@@ -42,7 +42,7 @@ One parse produces everything the index stores. For a Markdown Node:
 - **Links** → every wikilink event: raw target text (`T-42`, `docs/api`), occurrence order, and byte range in the body (the editor's decoration anchors). An alias form (`[[target|display]]`) is tolerated; target extraction is identical, the alias is display-only and never stored in the index.
 - `.excalidraw` and `.html` files are **leaf Nodes**: indexed with path/name/kind/title = name, no parsing, no outgoing edges (FR-2.5).
 
-**Front-matter write path.** Structural acts (`mark_done`, `assign_epic`, region refresh bookkeeping) go through `vault.patch_front_matter(path, patch)`: parse the mapping, apply the patch, re-serialize the whole block, leave the body byte-identical. Unknown keys survive; YAML comments inside the front-matter block do not — documented trade-off, preferred over fragile line-surgery on YAML.
+**Front-matter write path.** Structural acts (`mark_done`, `assign_epic`) go through `vault.patch_front_matter(path, patch)` *(amended by 09-lld-sources: region refresh performs no front-matter bookkeeping in v1 — it rewrites only the region; `title` is local-owned after import)*: parse the mapping, apply the patch, re-serialize the whole block, leave the body byte-identical. Unknown keys survive; YAML comments inside the front-matter block do not — documented trade-off, preferred over fragile line-surgery on YAML.
 
 ## SQLite schema
 
