@@ -1,0 +1,86 @@
+name: CI
+
+# The matrix is the point: `windows-latest` is Tier 1 (NFR-4) and never optional,
+# `ubuntu-latest` is there for fast feedback. Both legs run the same five steps.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  check:
+    name: ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      # A Windows-only failure must not hide behind a green Linux leg, or vice versa.
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Tauri's Linux webview. Windows runners already carry WebView2.
+      - name: Install Linux system dependencies
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libgtk-3-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            libsoup-3.0-dev \
+            libjavascriptcoregtk-4.1-dev
+
+      # Honours rust-toolchain.toml, so the runners compile with the pinned
+      # compiler, clippy and rustfmt — the same ones the dev machine uses.
+      - name: Set up Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          cache-workspaces: . -> target
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: app/pnpm-lock.yaml
+
+      # 1
+      - name: Format
+        run: cargo fmt --all --check
+
+      # 2 — picks up the layer-2 bans in crates/reeve-core/clippy.toml
+      - name: Clippy
+        run: cargo clippy --workspace --all-targets -- -D warnings
+
+      # 3 — includes the layer-3 ring test; core also runs with its fixtures on
+      - name: Test
+        run: |
+          cargo test --workspace
+          cargo test -p reeve-core --features fixtures
+
+      # 4 — the type contract cannot drift from the Rust source of truth
+      - name: Check generated types
+        run: cargo run --bin generate_types -- --check
+
+      # 5 — Vitest on lib/, then the strict TypeScript compile and the bundle
+      - name: Frontend
+        run: |
+          pnpm -C app install --frozen-lockfile
+          pnpm -C app test
+          pnpm -C app build

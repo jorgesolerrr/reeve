@@ -1,0 +1,31 @@
+# Ring-rule enforcement, layer 2 (05-lld-skeleton).
+#
+# The crate graph (layer 1) cannot stop core from doing I/O, because process
+# spawning and the filesystem ship with std. These bans make "core does no I/O"
+# lintable: core reaches the outside world through a seam trait or not at all.
+#
+# Applies to this crate only — clippy reads the clippy.toml next to the crate
+# being linted. `src-tauri` and `reeve-infra` are unaffected by design.
+
+disallowed-types = [
+    { path = "std::process::Command", reason = "core does not spawn processes; go through a seam trait (pty, git, gh)" },
+    { path = "std::process::Child", reason = "core does not own processes; the pty/git seams do" },
+    { path = "tokio::process::Command", reason = "core does not spawn processes, async or otherwise" },
+]
+
+disallowed-methods = [
+    { path = "std::fs::read", reason = "core does no file I/O; go through the vault seam" },
+    { path = "std::fs::read_to_string", reason = "core does no file I/O; go through the vault seam" },
+    { path = "std::fs::write", reason = "core does no file I/O; go through the vault seam" },
+    { path = "std::fs::copy", reason = "core does no file I/O; go through the vault seam" },
+    { path = "std::fs::rename", reason = "core does no file I/O; go through the vault seam" },
+    { path = "std::fs::remove_file", reason = "core does no file I/O; go through the vault seam" },
+    { path = "std::fs::remove_dir", reason = "core does no file I/O; go through the vault seam" },
+    { path = "std::fs::remove_dir_all", reason = "core does no file I/O; go through the vault seam" },
+    { path = "std::fs::create_dir", reason = "core does no file I/O; go through the vault seam" },
+    { path = "std::fs::create_dir_all", reason = "core does no file I/O; go through the vault seam" },
+    { path = "std::fs::read_dir", reason = "core does no file I/O; go through the vault seam" },
+    { path = "std::fs::metadata", reason = "core does no file I/O; go through the vault seam" },
+    { path = "std::fs::File::open", reason = "core does no file I/O; go through the vault seam" },
+    { path = "std::fs::File::create", reason = "core does no file I/O; go through the vault seam" },
+]

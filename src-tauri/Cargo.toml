@@ -1,0 +1,36 @@
+[package]
+name = "reeve-app"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Ring 1 — the Tauri adapter: commands, events, and the composition root."
+
+# The only crate allowed to name `tauri`, and the only one that sees both rings.
+[dependencies]
+reeve-core = { workspace = true }
+reeve-infra = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tauri = { version = "2", features = [] }
+ts-rs = { workspace = true }
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dev-dependencies]
+# Enforcement layer 3 walks the workspace sources; it lives here because layer 2
+# bans `std::fs` inside reeve-core (05-lld-skeleton, "Ring-rule enforcement").
+walkdir = "2"
+
+[[bin]]
+name = "reeve"
+path = "src/main.rs"
+
+[[bin]]
+name = "generate_types"
+path = "src/bin/generate_types.rs"
+
+[lints]
+workspace = true

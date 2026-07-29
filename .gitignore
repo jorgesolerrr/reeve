@@ -24,3 +24,9 @@ Thumbs.db
 
 # Local scratch
 .scratch/
+
+# Rust
+/target/
+
+# Tauri codegen output
+src-tauri/gen/schemas/

@@ -1,0 +1,25 @@
+[package]
+name = "reeve-core"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Ring 2 — reeve's services, domain components, seam traits and DTOs. Depends on nothing of ours."
+
+# Ring rule, enforcement layer 1: this list is the wall. No `tauri`, no `rusqlite`,
+# no `portable-pty`, no `reeve-infra`. Adding one of those here is the design bug.
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+ts-rs = { workspace = true }
+
+[features]
+# In-memory, deterministic seam implementations for hermetic domain tests.
+# Never enabled by a production binary; pulled as a dev-dependency with the
+# feature on (05-lld-skeleton, "Workspace conventions").
+fixtures = []
+
+[lints]
+workspace = true
