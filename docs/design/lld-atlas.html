@@ -404,13 +404,54 @@ next = max(counter, max observed) + 1  <span class="cm"># drift self-corrects fo
 </div>
 </div>
 
-<h2><span class="vn">View 7</span> Subsystem internals — pending</h2>
-<div class="pending-grid">
-  <div class="pending"><b>View 7 · Frontend</b><small>surfaces · query cache · terminal registry · diff viewer — prototype-driven. Pending <code>10-lld-frontend.md</code> (#17).</small></div>
+<h2><span class="vn">View 7</span> Frontend — query cache · terminal registry · viewers · review</h2>
+<p class="viewnote">From <code>10-lld-frontend.md</code> (#17). The ceiling is law: <b>one query cache (TanStack Query) + one UI store (zustand), nothing else</b> — no router (navigation is store state), no client mirror of server data. <code>lib/</code> is the only module that talks to the backend; everything long-lived that isn't server state (terminals) lives <b>outside the React tree</b>. Feature-folder interiors stay prototype territory; this view is the load-bearing structure.</p>
+
+<div class="layer fe">
+  <div class="tab">app/src/lib<small>the curated boundary</small></div>
+  <div class="boxes">
+    <div class="box"><b><code>bridge.ts</code></b><small>invoke/listen wrapper · unwraps 03's error envelope · typed by <code>generated/types.ts</code> · <b>the single mock point</b> for Vitest</small></div>
+    <div class="box"><b><code>queries.ts</code></b><small>keys <code>[proj, area, ...detail]</code> — project first (no cross-project cache bleed), area second (prefix strikes) · one hook per operation</small></div>
+    <div class="box"><b><code>events.ts</code></b><small><b>one global subscription</b>, never per component · <code>graph_changed</code>: exact by nodeId (filename = id) + coarse prefix <code>[proj,'graph']</code> · <code>workspace_changed</code>: <code>ws</code> prefix + board · <code>run_exited</code>: <code>ws</code> + exitCode direct to UI · <code>pty_output</code>: → registry, never Query</small></div>
+    <div class="box"><b><code>terminal-registry.ts</code></b><small><code>ticketId → { Terminal, FitAddon, owned div, mountCount }</code> — one live Run per ticket (08) · instance outlives components: adopt/release DOM by mount-count · cold attach seeds from <code>read_run_log</code> (2&nbsp;MiB tail) then streams · onData → <code>write_stdin</code> · fit → <code>resize_pty</code> (80×24 handshake) · buffer survives <code>run_exited</code>, dies with the Workspace</small></div>
+    <div class="box"><b><code>store.ts</code></b><small>the single zustand store: <code>{ surface, nodeId?, ticketId?, workspaceTab? }</code> + active project + per-launch Context Package tweaks</small></div>
+  </div>
+</div>
+<div class="flow-gap"><span class="arr"><span class="glyph">↑</span>surfaces consume lib/ only</span></div>
+<div class="layer fe">
+  <div class="tab">surfaces<small>five folders · shadcn/ui</small></div>
+  <div class="boxes">
+    <div class="box"><b>node · viewers by format</b><small><b>MD:</b> CodeMirror 6 source (wiki-link decorations, Ctrl+click) + markdown-it preview fed by core's resolution table, toggle · <b>Excalidraw:</b> official pkg, assets bundled (offline) · <b>HTML:</b> iframe <code>sandbox="allow-scripts"</code>, no same-origin, injected CSP <code>default-src 'none'</code> — network blocked, self-contained only · all lazy, all explicit-save</small></div>
+    <div class="box"><b>workspace · review tab</b><small>verdict header (verify chip · link warnings, warn-never-block · Merge / Push / Discard) · <b>Resolution Note rendered + pinned</b>, absent ⇒ visible warning · diff partitioned <b>Memory (<code>.reeve/</code>) / Code</b> · Monaco lazy, read-only v1, comments designed-for (loop model)</small></div>
+    <div class="box"><b>board · settings · preflight</b><small>render over core-derived data — no client-side board math · offer-to-close dialog chained on imported → done (09's trigger contract)</small></div>
+    <div class="box"><b><code>components/ui/</code></b><small>Tailwind v4 + shadcn/ui via CLI — repo-owned code, Radix underneath · feature interiors free</small></div>
+  </div>
+</div>
+
+<div class="grid2" style="margin-top: 14px;">
+<pre class="tree"><span class="cm"># event → invalidation, the whole client</span>
+graph_changed { paths }    → exact <span class="fe">['graph','node',id]</span> per path
+                             + coarse prefix <span class="fe">['graph']</span>
+                             <span class="cm"># A's edit moves B's backlinks — 1:1 is a lie</span>
+workspace_changed { t }    → prefix <span class="fe">['ws',t]</span> + <span class="fe">['graph','board']</span>
+run_exited { t, exitCode } → prefix <span class="fe">['ws',t]</span> · exitCode direct
+pty_output { t, data }     → registry.write — <span class="cm">never Query</span>
+
+<span class="cm"># HTML sandbox (NFR-2) — the CSP injection trick</span>
+&lt;iframe sandbox="allow-scripts"&gt;   <span class="cm"># opaque origin: no IPC/storage</span>
+srcdoc = <span class="fe">CSP meta</span> + untrusted html  <span class="cm"># applied CSP can't be relaxed;</span>
+default-src 'none'                  <span class="cm"># hostile meta only tightens. no net.</span></pre>
+
+<div class="enf">
+  <div class="enf-card"><span class="n">1</span><div><b>One cache + one store</b><small>Emdash ran three sources of truth and needed <code>reset-stale-acp-agent-statuses.ts</code> to reconcile them. TanStack Query + zustand is the ceiling; a router would be a third.</small></div></div>
+  <div class="enf-card"><span class="n">2</span><div><b>Verbatim kills WYSIWYG</b><small><code>save_doc</code> is verbatim (03); front-matter keeps unknown keys (06); Sources own their regions (09). ProseMirror round-trips normalize — disqualified. CodeMirror 6 edits source; markdown-it renders.</small></div></div>
+  <div class="enf-card"><span class="n">3</span><div><b>Terminals outlive React</b><small>Registry owns the xterm instance and its DOM; components adopt by mount-count. Tab switches never clear scrollback; cold attach re-seeds from the log (08's <code>read_run_log</code>).</small></div></div>
+  <div class="enf-card"><span class="n">4</span><div><b>Tests mock one seam</b><small>Vitest on <code>lib/</code>, mocked at <code>bridge.ts</code>, typed by ts-rs output — the mock can't drift silently. Surgical Testing Library; no E2E in v1 (tauri-driver on Windows CI is purchased fragility).</small></div></div>
+</div>
 </div>
 
 <footer>
-  reeve LLD atlas · seeded by 05-lld-skeleton.md (#12) · view 3 from 06-lld-graph.md (#13) · view 4 from 07-lld-workspaces.md (#14) · view 5 from 08-lld-runs.md (#15) · view 6 from 09-lld-sources.md (#16) · view 7 lands with #17 · companion: 04-hld.html
+  reeve LLD atlas · seeded by 05-lld-skeleton.md (#12) · view 3 from 06-lld-graph.md (#13) · view 4 from 07-lld-workspaces.md (#14) · view 5 from 08-lld-runs.md (#15) · view 6 from 09-lld-sources.md (#16) · view 7 from 10-lld-frontend.md (#17) · complete · companion: 04-hld.html
 </footer>
 
 </main>

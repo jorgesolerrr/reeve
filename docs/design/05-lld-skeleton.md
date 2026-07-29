@@ -80,7 +80,7 @@ GitHub Actions, matrix `windows-latest` (Tier 1, NFR-4 — mandatory, never opti
 2. `cargo clippy --workspace -- -D warnings` (picks up the layer-2 bans)
 3. `cargo test --workspace` (includes the layer-3 ring test; core tests run with `--features fixtures`)
 4. `cargo run --bin generate_types -- --check`
-5. `pnpm install && pnpm -C app build` (strict TS compile is the frontend's test until #17 adds real ones)
+5. `pnpm install && pnpm -C app test && pnpm -C app build` (Vitest on `lib/` — amended by 10-lld-frontend, which pays this line's original debt)
 
 ## The full tree
 
