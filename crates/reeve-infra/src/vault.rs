@@ -781,12 +781,15 @@ mod tests {
         }
     }
 
-    /// Windows callers exist; one stored form does not.
+    /// Windows callers exist; one stored form does not. The file is seeded with
+    /// the stored form — a backslash is a separator on Windows and an ordinary
+    /// filename byte on Linux, so only the *caller's* path may carry one.
     #[test]
     fn backslash_paths_are_folded_to_the_stored_form() {
-        let project = Project::with("docs\\api.md", "# API\n");
+        let project = Project::with("docs/api.md", "# API\n");
         assert_eq!(read(&project, "docs\\api.md").path, "docs/api.md");
         assert_eq!(read(&project, "./docs/api.md").path, "docs/api.md");
+        assert_eq!(read(&project, "docs//api.md").path, "docs/api.md");
     }
 
     // --- write_doc -------------------------------------------------------
