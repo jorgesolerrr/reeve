@@ -1,0 +1,23 @@
+[workspace]
+resolver = "2"
+members = ["crates/reeve-core", "crates/reeve-infra", "src-tauri"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.95"
+license = "MIT"
+repository = "https://github.com/jorgesolerrr/reeve"
+
+# Versions live here, once. Member crates say `workspace = true`.
+[workspace.dependencies]
+reeve-core = { path = "crates/reeve-core" }
+reeve-infra = { path = "crates/reeve-infra" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "2"
+ts-rs = "11"
+
+# Shared lint table. Warnings locally, `-D warnings` in CI.
+[workspace.lints.clippy]
+all = { level = "warn", priority = -1 }

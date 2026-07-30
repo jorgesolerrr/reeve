@@ -1,0 +1,5 @@
+[toolchain]
+# Pinned so the dev machine and both CI runners build with the same compiler,
+# the same clippy, and the same rustfmt (05-lld-skeleton, "Workspace conventions").
+channel = "1.95.0"
+components = ["rustfmt", "clippy"]

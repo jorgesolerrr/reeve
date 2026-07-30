@@ -1,0 +1,7 @@
+# One line ending everywhere, so a Windows checkout and a Linux checkout hand
+# `cargo fmt --check` and `generate_types --check` byte-identical files.
+* text=auto eol=lf
+
+*.png binary
+*.ico binary
+*.excalidraw text eol=lf

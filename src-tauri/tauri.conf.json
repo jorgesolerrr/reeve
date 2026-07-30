@@ -1,0 +1,43 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "reeve",
+  "version": "0.1.0",
+  "identifier": "com.jorgesolerrr.reeve",
+  "mainBinaryName": "reeve",
+  "build": {
+    "beforeDevCommand": {
+      "cwd": "../app",
+      "script": "pnpm dev"
+    },
+    "beforeBuildCommand": {
+      "cwd": "../app",
+      "script": "pnpm build"
+    },
+    "devUrl": "http://localhost:1420",
+    "frontendDist": "../app/dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "reeve",
+        "width": 1400,
+        "height": 900,
+        "minWidth": 900,
+        "minHeight": 600
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/icon.png",
+      "icons/icon.ico"
+    ]
+  }
+}
