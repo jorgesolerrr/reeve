@@ -12,9 +12,16 @@ description = "Ring 3 — git, index, vault, pty and gh_client: the implementati
 # ticket that needs them; only they may live in this crate.
 [dependencies]
 reeve-core = { workspace = true }
+pulldown-cmark = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
+serde_yaml_ng = { workspace = true }
 thiserror = { workspace = true }
+
+# Infra's tests are the real coverage of the seams: they run against a temp
+# directory, because a vault that never touches a filesystem proves nothing.
+[dev-dependencies]
+tempfile = { workspace = true }
 
 [lints]
 workspace = true

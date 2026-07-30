@@ -11,3 +11,5 @@
 //! ```
 //!
 //! Each subsystem LLD adds the fixture for the seam it defines.
+
+pub mod vault;
